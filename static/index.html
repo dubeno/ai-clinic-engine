@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="pageTitle">AI 内容引擎</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+header { text-align: center; padding: 30px 0 20px; }
+header h1 { font-size: 24px; color: #1a73e8; }
+header p { color: #666; margin-top: 8px; font-size: 14px; }
+
+/* 输入区 */
+.input-box { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+.input-row { display: flex; gap: 12px; }
+.input-row input { flex: 1; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+.input-row input:focus { border-color: #1a73e8; }
+.input-row button { padding: 12px 28px; background: #1a73e8; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+.input-row button:hover { background: #1557b0; }
+.input-row button:disabled { background: #93b5e8; cursor: not-allowed; }
+.options { margin-top: 12px; display: flex; gap: 16px; font-size: 14px; color: #666; }
+.options select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+
+/* 流程指示 */
+.steps { display: flex; gap: 8px; margin-bottom: 20px; }
+.step { flex: 1; text-align: center; padding: 10px; background: #e8e8e8; border-radius: 8px; font-size: 13px; color: #888; transition: all 0.3s; }
+.step.active { background: #d4e6fc; color: #1a73e8; font-weight: bold; }
+.step.done { background: #d4edda; color: #28a745; }
+.step.error { background: #f8d7da; color: #dc3545; }
+
+/* 结果区 */
+.panel { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; display: none; }
+.panel h3 { font-size: 16px; color: #333; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+.article-content { line-height: 1.8; font-size: 15px; white-space: pre-wrap; max-height: 500px; overflow-y: auto; }
+.article-content h2, .article-content h3 { margin-top: 16px; }
+
+/* 质量检查结果 */
+.issue { padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 14px; }
+.issue.error { background: #fce4e4; color: #c62828; }
+.issue.warning { background: #fff3e0; color: #e65100; }
+.pass-badge { display: inline-block; padding: 4px 12px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 14px; }
+.fail-badge { display: inline-block; padding: 4px 12px; background: #fce4ec; color: #c62828; border-radius: 4px; font-size: 14px; }
+
+/* 验证结果 */
+.verify-stats { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.verify-stat { padding: 8px 16px; background: #f5f5f5; border-radius: 8px; font-size: 14px; }
+.verify-stat strong { color: #1a73e8; }
+.verify-item { padding: 10px 12px; border-left: 3px solid #ddd; margin-bottom: 8px; font-size: 14px; background: #fafafa; }
+.verify-item.v { border-color: #4caf50; }
+.verify-item.p { border-color: #ff9800; }
+.verify-item.u { border-color: #9e9e9e; }
+.verify-item.n { border-color: #f44336; }
+.verify-item .meta { font-size: 12px; color: #888; margin-top: 4px; }
+
+/* 操作按钮 */
+.actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.btn-check { background: #e3f2fd; color: #1565c0; }
+.btn-check:hover { background: #bbdefb; }
+.btn-verify { background: #e8f5e9; color: #2e7d32; }
+.btn-verify:hover { background: #c8e6c9; }
+.btn-publish { background: #fff3e0; color: #e65100; }
+.btn-publish:hover { background: #ffe0b2; }
+.btn-new { background: #f3e5f5; color: #6a1b9a; }
+.btn-new:hover { background: #e1bee7; }
+
+.loading { text-align: center; padding: 20px; color: #888; }
+.loading::after { content: ''; animation: dots 1.5s steps(4, end) infinite; }
+@keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+
+/* 发布成功 */
+.publish-ok { padding: 12px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1 id="headerTitle">AI 内容引擎</h1>
+        <p id="headerDesc">输入主题关键词，一键生成内容</p>
+    </header>
+
+    <div class="input-box">
+        <div class="input-row">
+            <input type="text" id="topic" placeholder="输入文章主题关键词" value="">
+            <button id="btnGenerate" onclick="generate()">生成文章</button>
+        </div>
+        <div class="options">
+            <label>分类:
+                <select id="specialty">
+                    <option value="general">通用</option>
+                </select>
+            </label>
+            <label>格式:
+                <select id="contentType">
+                    <option value="seo_article">SEO长文</option>
+                    <option value="wechat">公众号文章</option>
+                    <option value="xiaohongshu">小红书笔记</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <div class="steps" id="steps" style="display:none">
+        <div class="step" id="step1">1. 生成文章</div>
+        <div class="step" id="step2">2. 质量检查</div>
+        <div class="step" id="step3">3. 声明验证</div>
+    </div>
+
+    <!-- 文章 -->
+    <div class="panel" id="panelArticle">
+        <h3 id="articleTitle"></h3>
+        <div class="article-content" id="articleContent"></div>
+        <div class="actions">
+            <button class="btn btn-check" onclick="runCheck()">质量检查</button>
+            <button class="btn btn-verify" onclick="runVerify()">声明验证</button>
+            <button class="btn btn-publish" onclick="runPublish()">发布到文件</button>
+            <button class="btn btn-new" onclick="reset()">重新生成</button>
+        </div>
+    </div>
+
+    <!-- 质量检查 -->
+    <div class="panel" id="panelCheck">
+        <h3>质量检查结果</h3>
+        <div id="checkResult"></div>
+    </div>
+
+    <!-- 声明验证 -->
+    <div class="panel" id="panelVerify">
+        <h3>声明验证</h3>
+        <div id="verifyResult"></div>
+    </div>
+
+    <!-- 发布 -->
+    <div class="panel" id="panelPublish">
+        <h3>发布结果</h3>
+        <div id="publishResult"></div>
+    </div>
+</div>
+
+<script>
+let currentArticleId = null;
+
+function generate() {
+    const topic = document.getElementById('topic').value.trim();
+    if (!topic) { alert('请输入文章主题'); return; }
+
+    const btn = document.getElementById('btnGenerate');
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+
+    // 重置
+    document.getElementById('panelArticle').style.display = 'none';
+    document.getElementById('panelCheck').style.display = 'none';
+    document.getElementById('panelVerify').style.display = 'none';
+    document.getElementById('panelPublish').style.display = 'none';
+
+    // 显示步骤
+    const steps = document.getElementById('steps');
+    steps.style.display = 'flex';
+    setStep('step1', 'active');
+    setStep('step2', '');
+    setStep('step3', '');
+
+    fetch('/api/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            topic: topic,
+            specialty: document.getElementById('specialty').value,
+            content_type: document.getElementById('contentType').value,
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = '生成文章';
+
+        if (data.success) {
+            currentArticleId = data.article_id;
+            setStep('step1', 'done');
+            document.getElementById('articleTitle').textContent = data.title;
+            document.getElementById('articleContent').textContent = data.content;
+            document.getElementById('panelArticle').style.display = 'block';
+        } else {
+            setStep('step1', 'error');
+            alert('生成失败: ' + data.error);
+        }
+    })
+    .catch(e => {
+        btn.disabled = false;
+        btn.textContent = '生成文章';
+        setStep('step1', 'error');
+        alert('请求失败: ' + e);
+    });
+}
+
+function runCheck() {
+    if (!currentArticleId) return;
+    setStep('step2', 'active');
+    document.getElementById('checkResult').innerHTML = '<div class="loading">检查中</div>';
+
+    fetch('/api/check', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({article_id: currentArticleId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            setStep('step2', 'done');
+            let html = data.passed
+                ? '<div class="pass-badge">通过</div>'
+                : '<div class="fail-badge">不通过</div>';
+            html += ' <span style="color:#888;font-size:14px">(' + data.issues.length + ' 个问题)</span>';
+            data.issues.forEach(i => {
+                html += `<div class="issue ${i.severity}">[${i.rule}] ${i.message}</div>`;
+            });
+            document.getElementById('checkResult').innerHTML = html;
+            document.getElementById('panelCheck').style.display = 'block';
+        } else {
+            setStep('step2', 'error');
+            document.getElementById('checkResult').innerHTML = '检查失败: ' + data.error;
+        }
+    })
+    .catch(e => {
+        setStep('step2', 'error');
+        document.getElementById('checkResult').innerHTML = '请求失败: ' + e;
+    });
+}
+
+function runVerify() {
+    if (!currentArticleId) return;
+    setStep('step3', 'active');
+    document.getElementById('verifyResult').innerHTML = '<div class="loading">验证中（ReAct Agent 工作中）</div>';
+
+    fetch('/api/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({article_id: currentArticleId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            setStep('step3', 'done');
+            let html = '<div class="verify-stats">';
+            html += `<div class="verify-stat">总声明: <strong>${data.total}</strong></div>`;
+            html += `<div class="verify-stat">已验证: <strong>${data.verified}</strong></div>`;
+            html += `<div class="verify-stat">部分验证: <strong>${data.partially}</strong></div>`;
+            html += `<div class="verify-stat">未验证: <strong>${data.unverified}</strong></div>`;
+            html += `<div class="verify-stat">需审核: <strong>${data.needs_review}</strong></div>`;
+            html += `<div class="verify-stat">通过率: <strong>${Math.round(data.pass_rate * 100)}%</strong></div>`;
+            html += '</div>';
+
+            const icons = {verified: 'v', partially: '~', unverified: '?', needs_review: '!', contradicted: 'X'};
+            const labels = {verified: '已验证', partially: '部分验证', unverified: '未验证', needs_review: '需审核', contradicted: '有矛盾'};
+            data.results.forEach(r => {
+                const cls = r.status === 'verified' ? 'v' : r.status === 'partially' ? 'p' : r.status === 'needs_review' ? 'n' : 'u';
+                html += `<div class="verify-item ${cls}">`;
+                html += `<div>[${labels[r.status] || r.status}] ${r.claim}</div>`;
+                html += `<div class="meta">${r.category} | 置信度 ${Math.round(r.confidence * 100)}%${r.sources.length ? ' | 来源: ' + r.sources.join(', ') : ''}</div>`;
+                html += '</div>';
+            });
+
+            document.getElementById('verifyResult').innerHTML = html;
+            document.getElementById('panelVerify').style.display = 'block';
+        } else {
+            setStep('step3', 'error');
+            document.getElementById('verifyResult').innerHTML = '验证失败: ' + data.error;
+        }
+    })
+    .catch(e => {
+        setStep('step3', 'error');
+        document.getElementById('verifyResult').innerHTML = '请求失败: ' + e;
+    });
+}
+
+function runPublish() {
+    if (!currentArticleId) return;
+
+    fetch('/api/publish', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({article_id: currentArticleId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('publishResult').innerHTML =
+                `<div class="publish-ok">已发布到: ${data.path}</div>`;
+            document.getElementById('panelPublish').style.display = 'block';
+        } else {
+            alert('发布失败: ' + data.error);
+        }
+    })
+    .catch(e => alert('请求失败: ' + e));
+}
+
+function reset() {
+    currentArticleId = null;
+    document.getElementById('steps').style.display = 'none';
+    document.getElementById('panelArticle').style.display = 'none';
+    document.getElementById('panelCheck').style.display = 'none';
+    document.getElementById('panelVerify').style.display = 'none';
+    document.getElementById('panelPublish').style.display = 'none';
+}
+
+function setStep(id, cls) {
+    const el = document.getElementById(id);
+    el.className = 'step' + (cls ? ' ' + cls : '');
+}
+
+// 启动时加载行业 profile，动态填充 UI
+(function loadProfile() {
+    fetch('/api/profile')
+        .then(r => r.json())
+        .then(p => {
+            document.getElementById('pageTitle').textContent = p.brand_name + ' 内容引擎';
+            document.getElementById('headerTitle').textContent = p.brand_name + ' 内容引擎';
+            document.getElementById('headerDesc').textContent = p.industry_name + ' — 输入主题关键词，一键生成内容';
+
+            // 动态填充专科下拉
+            const sel = document.getElementById('specialty');
+            sel.innerHTML = '';
+            for (const [val, label] of Object.entries(p.specialty_names)) {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = label;
+                if (val === p.default_specialty) opt.selected = true;
+                sel.appendChild(opt);
+            }
+
+            // 设置默认主题占位
+            document.getElementById('topic').placeholder = '输入文章主题关键词';
+        })
+        .catch(() => { /* profile 加载失败不影响使用 */ });
+})();
+</script>
+</body>
+</html>

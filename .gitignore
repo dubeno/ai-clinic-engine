@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 含 API Key，勿提交
+.env
+
+# 运行时数据
+clinic_engine.db
+output/
+rag_store/
+
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

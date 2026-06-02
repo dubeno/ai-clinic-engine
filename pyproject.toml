@@ -1,0 +1,30 @@
+[project]
+name = "ai-clinic-engine"
+version = "0.1.0"
+description = "AI-powered medical clinic content production system"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.30",
+    "openai>=1.0",
+    "pydantic>=2.0",
+    "fire>=0.6",
+    "python-dotenv>=1.0",
+    "loguru>=0.7",
+    "wechatpy>=1.8",
+    "schedule>=1.2",
+    "pdfplumber>=0.10",
+    "duckduckgo-search>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov"]
+
+[project.scripts]
+clinic-engine = "clinic_engine.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["clinic_engine*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
